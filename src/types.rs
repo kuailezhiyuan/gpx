@@ -4,6 +4,7 @@ pub use crate::parser::time::Time;
 use geo_types::{Geometry, LineString, MultiLineString, Point, Rect};
 #[cfg(feature = "use-serde")]
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Allowable GPX versions. Currently, only GPX 1.0 and GPX 1.1 are accepted.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -43,6 +44,9 @@ pub struct Gpx {
 
     /// A list of routes with a list of point-by-point directions
     pub routes: Vec<Route>,
+
+    /// <extensions> under the root <gpx> tag
+    pub extensions: Option<GpxExtensions>,
 }
 
 impl Gpx {
@@ -64,6 +68,21 @@ impl Gpx {
             ..Default::default()
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct GpxExtensions {
+    pub items: Vec<ExtensionItem>,
+
+    /// Namespace prefix => URI
+    pub namespaces: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct ExtensionItem {
+    pub name: String,                         // e.g., "gpxtpx:hr"
+    pub attributes: BTreeMap<String, String>, // node-level attributes
+    pub value: Option<String>,
 }
 
 /// Information about the copyright holder and any license governing use of this file.

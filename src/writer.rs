@@ -61,13 +61,31 @@ pub fn write_with_event_writer<W: Write>(gpx: &Gpx, writer: &mut EventWriter<W>)
         .creator
         .as_deref()
         .unwrap_or("https://github.com/georust/gpx");
-    write_xml_event(
-        XmlEvent::start_element("gpx")
-            .attr("version", version_to_version_string(gpx.version)?)
-            .attr("xmlns", version_to_xml_url(gpx.version)?)
-            .attr("creator", creator),
-        writer,
-    )?;
+
+    let mut ns_attrs: Vec<String> = Vec::new();
+    if let Some(ext) = &gpx.extensions {
+        for prefix in ext.namespaces.keys() {
+            ns_attrs.push(format!("xmlns:{}", prefix));
+        }
+    }
+
+    let mut root_elem = XmlEvent::start_element("gpx")
+        .attr("version", version_to_version_string(gpx.version)?)
+        .attr("xmlns", version_to_xml_url(gpx.version)?)
+        .attr("creator", creator);
+
+    if let Some(ext) = &gpx.extensions {
+        for (i, (_prefix, uri)) in ext.namespaces.iter().enumerate() {
+            root_elem = root_elem.attr(ns_attrs[i].as_str(), uri.as_str());
+        }
+    }
+
+    write_xml_event(root_elem, writer)?;
+
+    if let Some(ext) = &gpx.extensions {
+        write_extensions(ext, writer)?;
+    }
+
     write_metadata(gpx, writer)?;
     for point in &gpx.waypoints {
         write_waypoint(gpx.version, "wpt", point, writer)?;
@@ -345,6 +363,29 @@ fn write_track_segment<W: Write>(
     for point in &segment.points {
         write_waypoint(version, "trkpt", point, writer)?;
     }
+    write_xml_event(XmlEvent::end_element(), writer)?;
+    Ok(())
+}
+
+fn write_extensions<W: Write>(ext: &GpxExtensions, writer: &mut EventWriter<W>) -> GpxResult<()> {
+    write_xml_event(XmlEvent::start_element("extensions"), writer)?;
+
+    for item in &ext.items {
+        let mut elem = XmlEvent::start_element(item.name.as_str());
+
+        for (k, v) in &item.attributes {
+            elem = elem.attr(k.as_str(), v.as_str());
+        }
+
+        write_xml_event(elem, writer)?;
+
+        if let Some(value) = &item.value {
+            write_xml_event(XmlEvent::characters(value), writer)?;
+        }
+
+        write_xml_event(XmlEvent::end_element(), writer)?;
+    }
+
     write_xml_event(XmlEvent::end_element(), writer)?;
     Ok(())
 }
