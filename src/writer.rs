@@ -82,11 +82,12 @@ pub fn write_with_event_writer<W: Write>(gpx: &Gpx, writer: &mut EventWriter<W>)
 
     write_xml_event(root_elem, writer)?;
 
+    write_metadata(gpx, writer)?;
+
     if let Some(ext) = &gpx.extensions {
         write_extensions(ext, writer)?;
     }
-
-    write_metadata(gpx, writer)?;
+    
     for point in &gpx.waypoints {
         write_waypoint(gpx.version, "wpt", point, writer)?;
     }
